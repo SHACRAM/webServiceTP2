@@ -35,14 +35,24 @@ const UserSchema = z.object({
   password: z.string(),
 });
 
+const OrderSchema = z.object({
+  id: z.string(),
+  user_id: z.int(),
+  product_id: z.int(),
+  payment : z.boolean(),
+  createdAt: z.date(),
+  updatedAt: z.date()
+});
+
 const CreateProductSchema = ProductSchema.omit({id: true});
 const CreateUserSchema = UserSchema.omit({id: true});
-const UpdateUserSchema = UserSchema.omit({})
-const UpdateUserPartialSchema = CreateUserSchema.partial()
+const UpdateUserSchema = UserSchema.omit({});
+const UpdateUserPartialSchema = CreateUserSchema.partial();
+const CreateOrderSchema = OrderSchema.omit({});
+const UpdateOrdersPartialSchema = CreateOrderSchema.partial();
 
 app.get("/api/products", async (req,res) =>{
     const {name, about, price} = req.query;
-    const filters = {};
     if(name){
         const searchName = `%${name}%`
         const products = await sql `
@@ -112,7 +122,7 @@ app.delete("/api/products/:id", async (req,res) =>{
     }
 });
 
-
+//////////////////////////////////////////////
 app.get("/api/users", async (req,res)=>{
     const result = await sql `
     SELECT * FROM users
@@ -205,7 +215,7 @@ app.patch("/api/users/:id", async (req,res)=>{
         res.status(500).send({message: "Erreur serveur"})
     }
 })
-
+//////////////////////////////////////////
 app.get("/api/f2p-games", async (req, res)=>{
     try{
         const result = await fetch('https://www.freetogame.com/api/games')
@@ -231,6 +241,157 @@ app.get("/api/f2p-games/:id", async (req,res)=>{
         const games  = await result.json()
         res.send(games)
     } catch (error){
+        console.error("Erreur:" , error)
+        return res.status(500).send({message: "Erreur serveur"})
+    }
+})
+
+///////////////////////////////////////////////
+app.post("/api/orders", async (req, res) => {
+    try {
+        const { userId, productId } = req.body;
+        if (!userId || !productId) {
+            return res.status(400).send({ message: "Informations manquantes." });
+        }
+        const products = await sql`
+            SELECT price FROM products WHERE id = ${userId}
+        `;
+        
+        if (products.length === 0) {
+            return res.status(404).send({ message: "Produit non trouvé." });
+        }
+        
+        const product = products[0];
+        const totalProductPrice = product.price * 1.2;
+
+        const newOrder = await sql`
+            INSERT INTO orders (user_id, product_id, total)
+            VALUES (${userId}, ${productId}, ${totalProductPrice})
+            RETURNING *
+        `;
+        return res.status(201).send(newOrder[0]);
+
+    } catch (error) {
+        console.error("Erreur lors de la création de la commande :", error);
+        
+        if (!res.headersSent) {
+            return res.status(500).send({ message: "Erreur serveur interne." });
+        }
+    }
+});
+
+app.get("/api/orders/:id", async (req,res)=>{
+    try{
+        const userId= req.params.id
+
+        const userOrders = await sql`
+            SELECT 
+                o.id AS order_id,
+                o.total,
+                o.payment,
+                o.createdAt,
+                json_build_object(
+                    'id', u.id,
+                    'username', u.username,
+                    'email', u.email
+                ) AS user,
+                json_build_object(
+                    'id', p.id,
+                    'name', p.name,
+                    'about', p.about
+                ) AS product
+            FROM orders o
+            JOIN users u ON o.user_id = u.id
+            JOIN products p ON o.product_id = p.id 
+            WHERE o.user_id = ${userId}::int
+        `;
+        if(userOrders .length > 0){
+            return res.status(200).send(userOrders);
+        } else {
+            return res.status(400).send({message: "Pas de commandes"})
+        }
+
+    } catch (error){
+        console.error("Erreur:" , error)
+        return res.status(500).send({message: "Erreur serveur"})
+    }
+})
+
+app.delete("/api/orders/:id", async (req,res)=>{
+    try{
+        const orderId = req.params.id;
+
+        const deletedOrder = await sql`
+        DELETE FROM orders
+        WHERE id= ${orderId}
+        RETURNING *
+        `;
+
+        if(deletedOrder.length > 0){
+            return res.status(200).send(deletedOrder);
+        } else {
+            return res.status(400).send({message: "Pas de commandes avec cet id"})
+        }
+
+    } catch (error){
+        console.error("Erreur:" , error)
+        return res.status(500).send({message: "Erreur serveur"})
+    }
+})
+
+
+app.put("/api/orders/:id", async (req,res)=>{
+    try{
+        const { user_id, product_id } = req.body;
+        const orderId = req.params.id
+
+        const updateOrder = await sql`
+            UPDATE orders
+            SET user_id = ${user_id}, product_id = ${product_id}, updatedAt = NOW()
+            WHERE id = ${orderId}
+            RETURNING *
+        `;
+        if(updateOrder.length > 0){
+            return res.status(200).send(updateOrder[0]);
+        } else {
+            return res.status(400).send({message: "Impossible de mettre à jour la commande"})
+        }
+
+    }catch (error){
+        console.error("Erreur:" , error)
+        return res.status(500).send({message: "Erreur serveur"})
+    }
+})
+
+
+app.patch("/api/orders/:id", async (req,res)=>{
+    try{
+        const orderId = req.params.id
+        const result = await UpdateOrdersPartialSchema.safeParse(req.body);
+
+        if(result.success){
+            const updateData = result.data;
+            if (Object.keys(updateData).length === 0) {
+                return res.status(400).send({ message: "Aucun champ valide n'a été fourni pour la modification." });
+            }
+
+            const order = await sql`
+            UPDATE orders
+            SET ${sql(updateData)}
+            WHERE id = ${orderId}
+            RETURNING *
+            `;
+
+            if(order.length === 0){
+                res.status(404).send({message: "Commande non trouvée"})
+            }
+
+            res.send(order[0]);
+        } else {
+            res.status(400).send(result)
+        }
+
+    }catch (error){
         console.error("Erreur:" , error)
         return res.status(500).send({message: "Erreur serveur"})
     }

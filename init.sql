@@ -12,5 +12,16 @@ CREATE TABLE users (
   password VARCHAR(300) NOT NULL
 );
 
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id),
+  product_id INT REFERENCES products(id),
+  total NUMERIC(10,2) NOT NULL,
+  payment BOOLEAN DEFAULT false,
+  createdAt TIMESTAMP DEFAULT NOW(),
+  UpdatedAt TIMESTAMP DEFAULT NOW()
+);
+
+
 INSERT INTO products (name, about, price) VALUES
   ('My first game', 'This is an awesome game', '60')
