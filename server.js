@@ -41,10 +41,34 @@ const UpdateUserSchema = UserSchema.omit({})
 const UpdateUserPartialSchema = CreateUserSchema.partial()
 
 app.get("/api/products", async (req,res) =>{
-    const products = await sql `
-    SELECT * FROM products
-    `;
-    res.send(products);
+    const {name, about, price} = req.query;
+    const filters = {};
+    if(name){
+        const searchName = `%${name}%`
+        const products = await sql `
+        SELECT * FROM products 
+        WHERE name LIKE ${searchName}
+        `;
+        return res.send(products);
+    }
+    if(about){
+        const searchAbout = `%${about}%`
+        const products = await sql `
+        SELECT * FROM products 
+        WHERE about LIKE ${searchAbout}
+        `;
+        return res.send(products);
+    }
+    if(price){
+        const searchPrice = `${price}`
+        const products = await sql `
+        SELECT * FROM products 
+        WHERE price <= ${searchPrice}
+        `;
+        return res.send(products);
+    }
+    const allProducts = await sql`SELECT * FROM products`;
+    return res.send(allProducts);
 });
 
 app.get("/api/products/:id", async (req,res) =>{
