@@ -2,14 +2,13 @@ services:
   db:
     image: postgres:16
     container_name: tp-rest
-    command: postgres -p ${POSTGRES_PORT}
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+      - "${POSTGRES_PORT}:5432" # Redirige le port choisi de votre machine vers le 5432 du conteneur
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
