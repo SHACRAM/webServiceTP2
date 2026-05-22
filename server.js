@@ -171,7 +171,7 @@ app.patch("/api/users/:id", async (req,res)=>{
             if(user.length === 0){
                 res.status(404).send({message: "Utilisateur non trouvé"})
             }
-            
+
             res.send(user[0]);
         } else {
             res.status(400).send(result)
@@ -179,6 +179,36 @@ app.patch("/api/users/:id", async (req,res)=>{
     } catch (error){
         console.error("Server error:", error)
         res.status(500).send({message: "Erreur serveur"})
+    }
+})
+
+app.get("/api/f2p-games", async (req, res)=>{
+    try{
+        const result = await fetch('https://www.freetogame.com/api/games')
+        if(!result.ok){
+            return res.status(response.status).send({message:"Erreur de l'api externe"})
+        }
+        const games  = await result.json()
+        res.send(games)
+    } catch (error){
+        console.error("Erreur:" , error)
+        return res.status(500).send({message: "Erreur serveur"})
+    }
+    
+})
+
+app.get("/api/f2p-games/:id", async (req,res)=>{
+    const gameId = req.params.id;
+    try{
+        const result = await fetch(`https://www.freetogame.com/api/game?id=${gameId}`)
+        if(!result.ok){
+            return res.status(response.status).send({message:"Erreur de l'api externe"})
+        }
+        const games  = await result.json()
+        res.send(games)
+    } catch (error){
+        console.error("Erreur:" , error)
+        return res.status(500).send({message: "Erreur serveur"})
     }
 })
 
