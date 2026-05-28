@@ -25,3 +25,4 @@ CREATE TABLE orders (
 
 INSERT INTO products (name, about, price) VALUES
   ('My first game', 'This is an awesome game', '60')
+-- //TODO FAIRE L'EXO 6

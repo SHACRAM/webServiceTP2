@@ -18,7 +18,11 @@ const sql = postgres({
     password: process.env.POSTGRES_PASSWORD,
 });
 
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./swagger");
+
 app.use(express.json());
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 	
 const ProductSchema = z.object({
@@ -44,12 +48,43 @@ const OrderSchema = z.object({
   updatedAt: z.date()
 });
 
+const ReviewSchema = z.object({
+    id: z.string(),
+    user_id: z.number().positive(),
+    product_id: z.number().positive(),
+    content: z.string(),
+    createdAt: z.date(),
+    updatedAt: z.date()
+});
+
 const CreateProductSchema = ProductSchema.omit({id: true});
 const CreateUserSchema = UserSchema.omit({id: true});
 const UpdateUserSchema = UserSchema.omit({});
 const UpdateUserPartialSchema = CreateUserSchema.partial();
 const CreateOrderSchema = OrderSchema.omit({});
 const UpdateOrdersPartialSchema = CreateOrderSchema.partial();
+
+/**
+ * @swagger
+ * /api/products:
+ *   get:
+ *     summary: Récupérer tous les produits
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: name
+ *         schema:
+ *           type: string
+ *         description: Filtrer par nom
+ *       - in: query
+ *         name: price
+ *         schema:
+ *           type: number
+ *         description: Prix maximum
+ *     responses:
+ *       200:
+ *         description: Liste des produits
+ */
 
 app.get("/api/products", async (req,res) =>{
     const {name, about, price} = req.query;
@@ -80,6 +115,25 @@ app.get("/api/products", async (req,res) =>{
     const allProducts = await sql`SELECT * FROM products`;
     return res.send(allProducts);
 });
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   get:
+ *     summary: Récupérer un produit par son id
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: retourne un produit et ses infos
+ *       404:
+ *         description: Produit non trouvé
+ */
 
 app.get("/api/products/:id", async (req,res) =>{
     id = req.params.id;
@@ -157,6 +211,8 @@ app.post("/api/users", async (req, res)=>{
     
 })
 
+
+
 app.put("/api/users/:id", async (req,res)=>{
         const userId = req.params.id;
     try{
@@ -179,6 +235,25 @@ app.put("/api/users/:id", async (req,res)=>{
         res.status(500).send({message: "Erreur serveur"})
     }
 })
+
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   patch:
+ *     summary: mettre à jour les infos d'un utilisateur par son id
+ *     tags: [users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Retourne les informations mises à jour du user
+ *       404:
+ *         description: user non trouvé
+ */
 
 app.patch("/api/users/:id", async (req,res)=>{
         const userId = req.params.id;
@@ -216,6 +291,19 @@ app.patch("/api/users/:id", async (req,res)=>{
     }
 })
 //////////////////////////////////////////
+/**
+ * @swagger
+ * /api/f2P-games:
+ *   get:
+ *     summary: Récupérer la liste des jeux free to play
+ *     tags: [users]
+ *     parameters: No params
+ *     responses:
+ *       200:
+ *         description: Retourne tous les jeux
+ *       500:
+ *         description: Erreur serveur
+ */
 app.get("/api/f2p-games", async (req, res)=>{
     try{
         const result = await fetch('https://www.freetogame.com/api/games')
@@ -230,6 +318,25 @@ app.get("/api/f2p-games", async (req, res)=>{
     }
     
 })
+
+/**
+ * @swagger
+ * /api/f2p-games/{id}:
+ *   get:
+ *     summary: récupérer un jeu par son id
+ *     tags: [games]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Retourne les informations du jeu
+ *       404:
+ *         description: Le jeu est non trouvé
+ */
 
 app.get("/api/f2p-games/:id", async (req,res)=>{
     const gameId = req.params.id;
@@ -317,6 +424,25 @@ app.get("/api/orders/:id", async (req,res)=>{
     }
 })
 
+/**
+ * @swagger
+ * /api/orders/{id}:
+ *   delete:
+ *     summary: Supprimer une commande par son identifiant
+ *     tags: [orders]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Retourne les infos de la commande supprimée
+ *       404:
+ *         description: Commande non trouvée
+ */
+
 app.delete("/api/orders/:id", async (req,res)=>{
     try{
         const orderId = req.params.id;
@@ -396,6 +522,9 @@ app.patch("/api/orders/:id", async (req,res)=>{
         return res.status(500).send({message: "Erreur serveur"})
     }
 })
+
+/////////////////////////////////////////////// TODO EXERCICE 6
+
 
 app.listen(port, () => {
   console.log(`Listening on http://localhost:${port}`);
